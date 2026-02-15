@@ -1726,8 +1726,18 @@
                 return showPopup(err.message || t('popup.submitError'), false, true);
             }
             showLoading(false);
+
+            // Try to send Flex Message, but don't block success if it fails
+            if (typeof ENABLE_LIFF !== 'undefined' && ENABLE_LIFF) {
+                try {
+                    await sendFlexMessage();
+                } catch (flexError) {
+                    console.warn('Failed to send Flex Message:', flexError);
+                    // Optional: alert('Booking saved, but failed to send LINE message.');
+                }
+            }
+
             showPopup('popup.bookingSuccess', true);
-            await sendFlexMessage();
             $('bookingForm').reset();
             updateSelectedServices();
             $('timeDropdown').innerHTML = `<div class="text-placeholder text-sm text-center py-2 col-span-full">${t('step2.placeholder')}</div>`;
