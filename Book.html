@@ -815,7 +815,6 @@
         let currentVisibleStep = 'step1';
         let flatpickrInstance = null;
         let servicesLoaded = false;
-        let currentUserLineId = '';
         const historyState = {
             records: [],
             filtered: [],
@@ -1109,7 +1108,6 @@
                 if (p.pictureUrl) $('greetingAvatar').src = p.pictureUrl;
                 else $('greetingAvatar').style.display = 'none';
                 $('userlineid').value = p.userId;
-                currentUserLineId = p.userId;
                 setHistoryUserId(p.userId);
             } catch {
                 offlineProfile();
@@ -1120,7 +1118,6 @@
             $('greetingName').textContent = 'ผู้ใช้งานทดสอบ';
             $('greetingAvatar').style.display = 'none';
             $('userlineid').value = 'OFFLINE';
-            currentUserLineId = 'OFFLINE';
             setHistoryUserId('OFFLINE');
         }
 
@@ -1742,8 +1739,6 @@
 
             showPopup('popup.bookingSuccess', true);
             $('bookingForm').reset();
-            $('userlineid').value = currentUserLineId || '';
-            $('lang').value = currentLang || defaultLang;
             updateSelectedServices();
             $('timeDropdown').innerHTML = `<div class="text-placeholder text-sm text-center py-2 col-span-full">${t('step2.placeholder')}</div>`;
             $('time').value = '';
