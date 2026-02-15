@@ -328,41 +328,26 @@
                 <div id="listViewContent" data-tab-content>
                     <div class="bg-white shadow rounded-lg overflow-hidden">
                         <div class="overflow-x-auto w-full">
-                            <table class="min-w-max divide-y divide-gray-200">
+                            <table class="w-full min-w-[1320px] table-fixed divide-y divide-gray-200">
                                 <thead class="bg-gray-50">
                                     <tr>
                                         <th scope="col"
-                                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-thai">
-                                            ชื่อ-สกุล</th>
+                                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-thai sticky left-0 bg-gray-50 z-20 w-[200px]">
+                                            ข้อมูลคนไข้</th>
                                         <th scope="col"
-                                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-thai">
-                                            วันที่/เวลา</th>
+                                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-thai w-[180px]">
+                                            วัน/เวลา/สถานะ</th>
                                         <th scope="col"
-                                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-thai">
-                                            บริการ</th>
+                                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-thai w-[250px]">
+                                            บริการและหมายเหตุ</th>
                                         <th scope="col"
-                                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-thai">
-                                            เบอร์โทร</th>
+                                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-thai w-[220px]">
+                                            บัตร/โรค/แพ้ยา</th>
                                         <th scope="col"
-                                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-thai">
-                                            เลขบัตร/ประกันสังคม</th>
+                                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-thai w-[150px]">
+                                            หมอ/ห้อง</th>
                                         <th scope="col"
-                                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-thai">
-                                            โรค/แพ้ยา</th>
-                                        <th scope="col"
-                                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-thai">
-                                            หมอ</th>
-                                        <th scope="col"
-                                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-thai">
-                                            ห้อง</th>
-                                        <th scope="col"
-                                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-thai">
-                                            สถานะ</th>
-                                        <th scope="col"
-                                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-thai">
-                                            หมายเหตุ</th>
-                                        <th scope="col"
-                                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-thai min-w-[320px]">
+                                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-thai w-[320px]">
                                             การดำเนินการ</th>
                                     </tr>
                                 </thead>
@@ -787,7 +772,7 @@
             const paginatedData = data.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
             if (paginatedData.length === 0) {
-                appointmentTableBody.innerHTML = `<tr><td colspan="8" class="text-center text-gray-500 p-4 font-thai">ไม่พบข้อมูลที่ตรงกับเงื่อนไข</td></tr>`;
+                appointmentTableBody.innerHTML = `<tr><td colspan="11" class="text-center text-gray-500 p-4 font-thai">ไม่พบข้อมูลที่ตรงกับเงื่อนไข</td></tr>`;
                 renderPagination(0, 0, 0); // Clear pagination
                 return;
             }
@@ -831,19 +816,71 @@
                         ${buttonsHtml}
                     </div>`;
             } else if (type === 'row') {
+                let statusColorClass = 'text-yellow-600 bg-yellow-50';
+                if (item.status === 'ยืนยันแล้ว') statusColorClass = 'text-blue-600 bg-blue-50';
+                if (item.status === 'เสร็จสิ้น') statusColorClass = 'text-green-600 bg-green-50';
+                if (item.status === 'ยกเลิก') statusColorClass = 'text-red-600 bg-red-50';
+
                 return `
-                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 font-thai sticky left-0 bg-white z-10">${item.name}</td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 font-thai">${item.date} ${item.time}</td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 font-thai">${item.service}</td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 font-thai">${item.phonenumber}</td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 font-thai">${item.idCardOrSocial || '-'}</td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 font-thai">${item.diseaseAllergy || '-'}</td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 font-thai">${item.doctor || '-'}</td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 font-thai">${item.room || '-'}</td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 font-thai">${item.status}</td>
-                    <td class="px-4 py-3 text-sm text-gray-500 font-thai max-w-xs truncate" title="${item.note || '-'}">${item.note || '-'}</td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium">
-                        <div class="flex flex-wrap gap-1.5">
+                    <td class="px-4 py-4 sticky left-0 bg-white z-10 border-r border-gray-100">
+                        <div class="flex flex-col">
+                            <span class="text-sm font-bold text-gray-900 font-thai truncate" title="${item.name}">${item.name}</span>
+                            <span class="text-xs text-gray-500 font-thai">${item.phonenumber}</span>
+                        </div>
+                    </td>
+                    <td class="px-4 py-4">
+                        <div class="flex flex-col gap-1">
+                            <span class="text-sm text-gray-700 font-thai font-medium">${item.date} <span class="text-gray-400">@</span> ${item.time}</span>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium w-fit ${statusColorClass} font-thai">
+                                ${item.status}
+                            </span>
+                        </div>
+                    </td>
+                    <td class="px-4 py-4">
+                        <div class="flex flex-col">
+                            <span class="text-sm text-gray-900 font-thai font-medium line-clamp-2" title="${item.service}">${item.service}</span>
+                            <span class="text-xs text-gray-400 font-thai italic flex items-start gap-1 mt-1" title="${item.note || '-'}">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                                ${item.note || '-'}
+                            </span>
+                        </div>
+                    </td>
+                    <td class="px-4 py-4">
+                        <div class="flex flex-col text-xs text-gray-600 space-y-1.5">
+                            <div class="flex items-center gap-1.5" title="${item.idCardOrSocial || '-'}">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0" />
+                                </svg>
+                                <span class="truncate">${item.idCardOrSocial || '-'}</span>
+                            </div>
+                            <div class="flex items-center gap-1.5 text-red-500 font-thai" title="${item.diseaseAllergy || '-'}">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                                <span class="truncate">${item.diseaseAllergy || '-'}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-4 py-4">
+                        <div class="flex flex-col text-xs text-gray-600 space-y-1.5">
+                            <div class="flex items-center gap-1.5">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                                <span class="font-thai">${item.doctor || '-'}</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                </svg>
+                                <span class="font-thai">${item.room || '-'}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-4 py-4">
+                        <div class="flex flex-wrap gap-2">
                            ${buttonsHtml}
                         </div>
                     </td>`;
