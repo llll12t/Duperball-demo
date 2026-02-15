@@ -90,8 +90,10 @@
             class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div
                 class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm text-center transform transition-all scale-100">
-                <h3 class="text-lg font-bold text-gray-900 mb-2" data-tkey="modal.title">ยืนยันการยกเลิก?</h3>
-                <p class="text-gray-500 mb-6" data-tkey="modal.desc">คุณแน่ใจหรือไม่ว่าต้องการยกเลิกการนัดหมายนี้?</p>
+                <h3 id="modalTitle" class="text-lg font-bold text-gray-900 mb-2" data-tkey="modal.title">
+                    ยืนยันการยกเลิก?</h3>
+                <p id="modalDesc" class="text-gray-500 mb-6" data-tkey="modal.desc">
+                    คุณแน่ใจหรือไม่ว่าต้องการยกเลิกการนัดหมายนี้?</p>
                 <div class="flex gap-3 justify-center">
                     <button id="modalCancel"
                         class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded"
@@ -160,16 +162,21 @@
         function updateLangUI() {
             document.getElementById('cardTitle').textContent = t('title');
             document.querySelectorAll('[data-tkey]').forEach(el => {
-                el.textContent = t(el.getAttribute('data-tkey'));
+                const key = el.getAttribute('data-tkey');
+                el.textContent = t(key);
             });
             // Update loading overlay text
-            document.getElementById('loadingText').textContent = t('loading');
+            const loadingTextEl = document.getElementById('loadingText');
+            if (loadingTextEl) loadingTextEl.textContent = t('loading');
+
             // Update result text if visible
-            if (!document.getElementById('resultContainer').classList.contains('hidden')) {
-                const txt = document.getElementById('resultText').innerText; // Use innerText to get current displayed text intent
-                // Simple check: always re-apply success/error key based on known state or just re-render last action
-                //For simplicity in this specific request context, we focus only on Cancel result
-                document.getElementById('resultText').textContent = t('resultCancel');
+            const resultContainer = document.getElementById('resultContainer');
+            if (!resultContainer.classList.contains('hidden')) {
+                const resultTextEl = document.getElementById('resultText');
+                const key = resultTextEl.getAttribute('data-result-key');
+                if (key) {
+                    resultTextEl.textContent = t(key);
+                }
             }
         }
         document.addEventListener('DOMContentLoaded', async () => {
@@ -231,7 +238,9 @@
 
         // --- วางทับฟังก์ชันนี้ทั้งหมดใน confirm.html ---
         async function handleAction(action, bookingId) {
-            showLoading(true, "กำลังดำเนินการ...");
+            // showLoading(true, t('loading')); // Use t() for loading text
+            showLoading(true); // Don't pass text, let showLoading translate it
+
             try {
                 // *** จุดที่แก้ไข: เปลี่ยนรูปแบบการ fetch ให้เรียบง่ายขึ้น ***
                 // เราส่งข้อมูลทั้งหมดผ่าน URL อยู่แล้ว จึงไม่จำเป็นต้องมี headers หรือ body
@@ -245,30 +254,36 @@
                     throw new Error(resultText || "การดำเนินการไม่สำเร็จ");
                 }
 
-                let message = t('resultCancel'); // Default message for cancel
-                showSuccess(message);
+                let messageKey = 'resultCancel'; // Default key for cancel
+                // You can add logic here if other actions are added later
+
+                showSuccess(messageKey); // Pass key instead of raw message
 
             } catch (error) {
                 // แสดงข้อความ Error ที่มาจาก Server หรือ "Load failed" กรณีเชื่อมต่อไม่ได้เลย
-                showError(`ผิดพลาด: ${error.message}`);
+                showError(error.message); // Pass raw error message
             }
         }
 
         function showLoading(isLoading, text) {
             const overlay = document.getElementById('loadingOverlay');
+            // Use translation for loading text
             document.getElementById('loadingText').textContent = text || t('loading');
             isLoading ? overlay.classList.remove('hidden') : overlay.classList.add('hidden');
         }
 
-        function showSuccess(message) {
+        function showSuccess(messageKey) {
             showLoading(false);
             document.getElementById('detailsContainer').classList.add('hidden');
             document.getElementById('buttonsContainer').classList.add('hidden');
             document.getElementById('cardTitle').textContent = t('success');
             const resultContainer = document.getElementById('resultContainer');
-            document.getElementById('resultText').textContent = message;
+
+            // Store the key so updateLangUI can re-translate if language changes
+            document.getElementById('resultText').setAttribute('data-result-key', messageKey);
+            document.getElementById('resultText').textContent = t(messageKey);
+
             resultContainer.classList.remove('hidden');
-            updateLangUI();
         }
 
         function showError(message) {
