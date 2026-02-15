@@ -1,11 +1,13 @@
 
-const SPREADSHEET_ID = '1djH94Ht78Ig2sUoxdXaVzL37fcggxHSKeafHaWggcsY';
+ SPREADSHEET_ID = '1DzQaGJRZNcv0I_ieFmdd9_-ltngtm9Fo2f7SwqQ3igQ'; // Duplicate of Code.gs
 const SHEET_NAME_MEMBER = 'รายชื่อสมาชิก';
 const SHEET_NAME_SERVICE = 'บริการ';
 const SHEET_NAME_SETTING = 'ตั้งค่าทั่วไป';
 const SHEET_ADMIN = 'แอดมิน';
-const DRIVE_FOLDER_ID = '15T8WipLolB2Yb31OXS_TLHr5QwlbWNuk'; // ตรวจสอบให้แน่ใจว่าเป็น Folder ID ที่ถูกต้อง
+const DRIVE_FOLDER_ID = '1-2L2yw79CwTSW808XTxOYIn0dI8z6qFY'; // ตรวจสอบให้แน่ใจว่าเป็น Folder ID ที่ถูกต้อง
 const SHEET_BOT_EXECUTE = 'bot_execute';
+
+
 
 
 // --- Web Entry Point ---
@@ -203,7 +205,7 @@ function deleteMember(id, branch) {
 function fetchServiceData(branch) {
   branch = branch || '1';
   const sheetName = getSheetNameByBranch(SHEET_NAME_SERVICE, branch);
-  const sheet = getOrCreateSheet(sheetName, ['ไอดี', 'รายการ', 'รายละเอียด', 'ราคา', 'รูปภาพ']);
+  const sheet = getOrCreateSheet(sheetName, ['ไอดี', 'รายการ', 'รายละเอียด', 'ราคา', 'รูปภาพ', 'Service Name EN', 'Service Name MY', 'Service Name KM']);
   const values = sheet.getDataRange().getDisplayValues(); // ใช้ getDisplayValues() เพื่อให้ได้ค่าตามที่แสดงในชีท (รวมถึง URL รูปภาพ)
   const headers = values.length > 0 ? values.shift() : []; // ตรวจสอบว่ามีข้อมูลก่อน shift headers
 
@@ -229,7 +231,7 @@ function fetchServiceData(branch) {
 function insertOrUpdateService(data) {
   const branch = data.branch || '1';
   const sheetName = getSheetNameByBranch(SHEET_NAME_SERVICE, branch);
-  const sheet = getOrCreateSheet(sheetName, ['ไอดี', 'รายการ', 'รายละเอียด', 'ราคา', 'รูปภาพ']);
+  const sheet = getOrCreateSheet(sheetName, ['ไอดี', 'รายการ', 'รายละเอียด', 'ราคา', 'รูปภาพ', 'Service Name EN', 'Service Name MY', 'Service Name KM']);
   const values = sheet.getDataRange().getValues(); // ใช้ getValues() เพื่อให้ได้ค่าดิบ (เช่น ID เป็นตัวเลข)
 
   let id = data['ไอดี']; // นี่คือ ID ที่ส่งมาจากฟอร์ม (อาจเป็นค่าว่างสำหรับรายการใหม่ หรือ ID เดิมสำหรับการอัปเดต)
@@ -273,7 +275,10 @@ function insertOrUpdateService(data) {
     data['รายการ'] || '',
     data['รายละเอียด'] || '',
     price,
-    imageUrl
+    imageUrl,
+    data['Service Name EN'] || '',
+    data['Service Name MY'] || '',
+    data['Service Name KM'] || ''
   ];
 
   // 5. ดำเนินการบันทึก
@@ -669,6 +674,16 @@ function getOrCreateSheet(name, headers) {
     sheet = ss.insertSheet(name);
     if (headers) {
       sheet.appendRow(headers);
+    }
+  } else {
+    // Sheet exists, check if we need to add headers (columns)
+    if (headers && headers.length > 0) {
+      const lastCol = sheet.getLastColumn();
+      if (lastCol < headers.length) {
+        // If current columns are fewer than required headers, update the header row
+        // This effectively adds the new columns' headers
+        sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+      }
     }
   }
   return sheet;

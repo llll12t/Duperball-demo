@@ -16,9 +16,9 @@ function getCalendarIdByBranch(branch) {
   if (!branch || branch === 'main' || branch === '1') return CALENDAR_ID;
   return CALENDAR_IDS[branch] || CALENDAR_ID;
 }
-const LINE_TOKEN = 'yFnwi98YZoNf9PjGv5YrJz6AHCRrxS6HaJwxLjdfKI029WY0GbrVuHGEpIp8D6uR91EGluS8OICSK76X8SEQD12bSt8U4OPCXjFeM7zUAszTy5qXhUZIZZGPWNXPOnrhj2e8h34QYZiR1Wh7i/wxigdB04t89/1O/w1cDnyilFU=';
+const LINE_TOKEN = '48lb16bl7sn8aGEiNkaIgFWmkgU4EsHauKAikCZXPaqg/t6bJto1pll2DdRJouTOPbJPRGZA5snAlwQtEGMUiNva1f1agAasgEf+QWK7xRakz+F64nqdwEsHdOZlZwDlP4mFFXLwXop18tv0dEZUhAdB04t89/1O/w1cDnyilFU=';
 
-const LIFF_ID_CONFIRM = '2006029649-8GP41NAg';
+const LIFF_ID_CONFIRM = '2007432636-Rw2NO5DL';
 
 // ================================
 // ค่าคงที่สำหรับ Telegram Bot
@@ -135,15 +135,6 @@ function doGet(e) {
       return cancelBooking(e.parameter);
     // ================================
     default:
-      // Try Setting.gs handler
-      let settingResult = null;
-      try {
-        settingResult = handleSettingGet(e);
-      } catch (err) {
-        Logger.log('handleSettingGet error: ' + err);
-      }
-      if (settingResult) return settingResult;
-      
       return checkAvailability(e);
   }
 }
@@ -163,7 +154,7 @@ function doPost(e) {
   } else if (action === 'completeBooking') {
     result = completeBooking(e);
   } else if (action === 'sendReminder') {
-    result = sendReminder(e.parameter);
+    result = sendReminder(e.parameter.id);
   } else if (action === 'sendReminderWithPayment') {
     result = sendReminderWithPayment(e.parameter);
   } else if (action === 'sendReminderWithoutPayment') {
@@ -177,11 +168,6 @@ function doPost(e) {
   }
   // ไม่ต้องเช็คหรือเพิ่ม CORS header
   if (result) return result;
-
-  // Try Setting.gs handler
-  const settingResult = handleSettingPost(e);
-  if (settingResult) return settingResult;
-
   // รองรับ LINE postback JSON
   if (e.postData && e.postData.type === 'application/json') {
     const data = JSON.parse(e.postData.contents);
@@ -314,7 +300,6 @@ function checkAvailabilityLegacy(e) {
 // ----------------------------------------------------------------
 // สร้างการจอง (รองรับหลายสาขา)
 function makeBooking(e) {
-  try {
   var branch = e && e.parameter && e.parameter.branch ? e.parameter.branch : '';
   var sheetNameBooking = getSheetNameByBranch(SHEET_BOOKING, branch);
   var sheetNameDatetime = getSheetNameByBranch(SHEET_DATETIME, branch);
@@ -325,8 +310,8 @@ function makeBooking(e) {
   if (!sheet) {
     sheet = ss.insertSheet(sheetNameBooking);
     // สร้าง Header สำหรับชีตการจอง
-    sheet.getRange(1, 1, 1, 19).setValues([
-      ['ID', 'userlineid', 'firstName', 'lastName', 'phonenumber', 'idCardOrSocial', 'diseaseAllergy', 'note', 'serviceNames', 'totalPrice', 'formattedDate', 'time', 'status', 'timestamp', 'calendarEventId', 'doctor', 'room', 'branch', 'lang']
+    sheet.getRange(1, 1, 1, 18).setValues([
+      ['ID', 'userlineid', 'firstName', 'lastName', 'phonenumber', 'idCardOrSocial', 'diseaseAllergy', 'note', 'serviceNames', 'totalPrice', 'formattedDate', 'time', 'status', 'timestamp', 'calendarEventId', 'doctor', 'room', 'branch']
     ]);
   }
   let dtSheet = ss.getSheetByName(sheetNameDatetime);
@@ -346,7 +331,7 @@ function makeBooking(e) {
     ]);
   }
 
-  const userlineid = String(e.parameter.userlineid || '').trim();
+  const userlineid = e.parameter.userlineid || '';
   const firstName = e.parameter.first_name || '';
   const lastName = e.parameter.last_name || '';
   const name = (firstName + ' ' + lastName).trim();
@@ -354,7 +339,6 @@ function makeBooking(e) {
   const idCardOrSocial = e.parameter.id_card_or_social || '';
   const diseaseAllergy = e.parameter.disease_allergy || '';
   const note = e.parameter.note || '';
-  const lang = e.parameter.lang || 'th'; // รับค่าภาษา
   const timestamp = Utilities.formatDate(new Date(), "GMT+7", "dd-MM-yyyy HH:mm:ss");
   const date = e.parameter.date || ''; // รูปแบบ: yyyy-MM-dd
   const time = e.parameter.time || ''; // รูปแบบ: HH:mm
@@ -376,10 +360,9 @@ function makeBooking(e) {
   datetime.setHours(hh, mm, 0, 0);
 
   // ปิดทุกวันเป็นค่าเริ่มต้น: ต้องอยู่ในวันทำงานถึงจะจองได้
-  // ปิดทุกวันเป็นค่าเริ่มต้น: ต้องอยู่ในวันทำงานถึงจะจองได้
   const dtRowsForWorkday = dtSheet.getDataRange().getValues();
-  const workdayConfig = extractWorkdayConfig(dtRowsForWorkday);
-  if (!isWorkingDay(datetime, workdayConfig.weeklyWorkdays, workdayConfig.extraWorkdays)) {
+  const workdayConfig = extractWorkdayConfigV2(dtRowsForWorkday);
+  if (!isWorkingDateV2(datetime, workdayConfig.weeklyWorkdays, workdayConfig.specialWorkdays)) {
     return ContentService.createTextOutput(JSON.stringify({
       success: false,
       message: 'วันที่เลือกไม่เปิดให้บริการ'
@@ -395,11 +378,7 @@ function makeBooking(e) {
   phonenumber = "'" + String(phonenumber).trim();
 
   // ตรวจ capacity
-  const dtLastRow = dtSheet.getLastRow();
-  let times = [];
-  if (dtLastRow > 1) {
-    times = dtSheet.getRange('B2:B' + dtLastRow).getValues().flat();
-  }
+  const times = dtSheet.getRange('B2:B').getValues().flat();
   const idx = times.indexOf(time);
   if (idx >= 0) {
     const maxBookingsData = dtSheet.getDataRange().getValues().slice(1).map(r => Number(r[2]) || 0);
@@ -447,19 +426,15 @@ function makeBooking(e) {
   }
   // Scan all existing IDs for this branch and find max running number
   let maxRunning = 0;
-  const lastRow = sheet.getLastRow();
-  
-  if (lastRow > 1) {
-    const allIds = sheet.getRange(2, 1, lastRow - 1, 1).getValues().flat();
-    const idPattern = new RegExp('^BK' + branchNum + '-(\\d+)$');
-    allIds.forEach(function(existingId) {
-      const m = idPattern.exec(existingId);
-      if (m && m[1]) {
-        const num = parseInt(m[1], 10);
-        if (num > maxRunning) maxRunning = num;
-      }
-    });
-  }
+  const allIds = sheet.getRange(2, 1, Math.max(0, sheet.getLastRow()-1), 1).getValues().flat();
+  const idPattern = new RegExp('^BK' + branchNum + '-(\\d+)$');
+  allIds.forEach(function(existingId) {
+    const m = idPattern.exec(existingId);
+    if (m && m[1]) {
+      const num = parseInt(m[1], 10);
+      if (num > maxRunning) maxRunning = num;
+    }
+  });
   const id = 'BK' + branchNum + '-' + (maxRunning + 1);
   // ปรับคอลัมน์: [id, userlineid, firstName, lastName, phonenumber, idCardOrSocial, diseaseAllergy, note, serviceNames, totalPrice, formattedDate, time, status, timestamp, calendarEventId, "", "", branch]
   // branch ต้องอยู่คอลัมน์ R (column 18)
@@ -476,13 +451,12 @@ function makeBooking(e) {
     totalPrice,       // J (10)
     formattedDate,    // K (11)
     time,             // L (12)
-    'ยืนยันแล้ว',      // M (13) -- เปลี่ยนสถานะเริ่มต้นเป็น 'ยืนยันแล้ว'
+    'รอการยืนยัน',     // M (13)
     timestamp,        // N (14)
     calendarEventId,  // O (15)
     '',               // P (16) - doctor
     '',               // Q (17) - room
-    branch,           // R (18)
-    lang              // S (19) - language
+    branch            // R (18)
   ];
   sheet.getRange(nextRow, 1, 1, newRow.length).setValues([newRow]);
 
@@ -493,31 +467,16 @@ function makeBooking(e) {
   sheet.getRange(nextRow, 14).setNumberFormat("@"); // Timestamp
   sheet.getRange(nextRow, 15).setNumberFormat("@"); // Calendar Event ID
 
-  // อัปเดตหรือเพิ่มสมาชิก โดยเช็คจาก userlineid
+  // อัปเดตหรือเพิ่มสมาชิก (ตัวอย่าง: อัปเดตเฉพาะชื่อ-นามสกุลและเบอร์)
   const dataMem = memSheet.getDataRange().getValues();
-  let existIdx = -1;
-  if (userlineid) {
-    // ไล่จากล่างขึ้นบนเพื่อใช้ข้อมูลล่าสุดในกรณีมีข้อมูลซ้ำเก่า
-    for (let i = dataMem.length - 1; i >= 1; i--) {
-      const rowUserlineid = String(dataMem[i][1] || '').trim();
-      if (rowUserlineid === userlineid) {
-        existIdx = i + 1;
-        break;
-      }
-    }
-  }
-
+  const existIdx = dataMem.findIndex(r => r[1] === userlineid) + 1;
   if (existIdx > 1) {
-    memSheet.getRange(existIdx, 2, 1, 7).setValues([[
-      userlineid,
-      firstName,
-      lastName,
-      phonenumber,
-      idCardOrSocial,
-      diseaseAllergy,
-      timestamp
-    ]]);
-    memSheet.getRange(existIdx, 5).setNumberFormat("@");
+    memSheet.getRange(existIdx, 3).setValue(firstName);
+    memSheet.getRange(existIdx, 4).setValue(lastName);
+    memSheet.getRange(existIdx, 5).setNumberFormat("@").setValue(phonenumber);
+    memSheet.getRange(existIdx, 6).setValue(idCardOrSocial);
+    memSheet.getRange(existIdx, 7).setValue(diseaseAllergy);
+    memSheet.getRange(existIdx, 8).setValue(timestamp);
   } else {
     memSheet.appendRow([id, userlineid, firstName, lastName, phonenumber, idCardOrSocial, diseaseAllergy, timestamp]);
     memSheet.getRange(memSheet.getLastRow(), 5).setNumberFormat("@");
@@ -528,90 +487,40 @@ function makeBooking(e) {
     `📅 นัดหมายใหม่\n👤: ${name}\n📋: ${serviceNames}\n💰: ${totalPrice}\n📅: ${formattedDate}\n⏰: ${time}`
   );
 
-  return ContentService.createTextOutput(JSON.stringify({ success: true, message: 'Booking successful!' }))
+  return ContentService.createTextOutput('Booking successful!')
     .setMimeType(ContentService.MimeType.JSON);
-
-  } catch (error) {
-    Logger.log('Error in makeBooking: ' + error.toString());
-    return ContentService.createTextOutput(JSON.stringify({
-      success: false,
-      message: 'Error: ' + error.toString()
-    })).setMimeType(ContentService.MimeType.JSON);
-  }
 }
 
 
 // ----------------------------------------------------------------
 // แจ้งเตือนพร้อมจ่ายเงิน
-// function sendReminderWithPayment(params) {
-//   const id = params.id;
-//   const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_BOOKING);
-//   const data = sheet.getDataRange().getValues();
-//   const idx = data.findIndex(r => r[0] == id);
-//   if (idx < 0) return ContentService.createTextOutput('Booking not found');
-//   const b = data[idx];
-//   const totalPrice = b[9]; // Column J: totalPrice
-//   const fullName = (b[2] || '') + ' ' + (b[3] || ''); // firstName + lastName
-//   // Remove (ราคา ...) from serviceNames for Flex
-//   const serviceNoPrice = (b[8] || '').split(',').map(s => s.replace(/\(ราคา.*?\)/g, '').trim()).join(', ');
-//   const qrCodeUrl = `https://promptpay.io//${totalPrice}.png`;
-//   const liffUrl = `https://liff.line.me/XXXXXXXXXXXXXXX?id=${id}&userlineid=${b[1]}&name=${encodeURIComponent(fullName)}&contact=${encodeURIComponent(b[4])}&serviceNames=${encodeURIComponent(serviceNoPrice)}&totalPrice=${totalPrice}`;
-//   const reminderData = {
-//     idKey: b[0], service: serviceNoPrice,
-//     date: b[10], time: b[11], name: fullName, // Column K: date, Column L: time
-//     qrCodeUrl, liffUrl, status: b[12]
-//   };
-//   const lang = b[18] || 'th'; // Column S: lang (index 18)
-//   sendLineMessage(b[1], 'reminder_with_payment', reminderData, lang);
-//   return ContentService.createTextOutput('Reminder with payment sent.');
-// }
-
-// ----------------------------------------------------------------
-// แจ้งเตือน without payment
-// ----------------------------------------------------------------
-// แจ้งเตือน without payment (For 'แจ้งเตือน' button)
-function sendReminderWithoutPayment(params) {
+function sendReminderWithPayment(params) {
   const id = params.id;
-  const branch = params.branch || '1';
-  const sheetName = getSheetNameByBranch(SHEET_BOOKING, branch);
-  const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(sheetName);
-  
-  if (!sheet) return ContentService.createTextOutput('Sheet not found for branch ' + branch);
-
+  const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_BOOKING);
   const data = sheet.getDataRange().getValues();
   const idx = data.findIndex(r => r[0] == id);
   if (idx < 0) return ContentService.createTextOutput('Booking not found');
   const b = data[idx];
+  const totalPrice = b[9]; // Column J: totalPrice
   const fullName = (b[2] || '') + ' ' + (b[3] || ''); // firstName + lastName
   // Remove (ราคา ...) from serviceNames for Flex
   const serviceNoPrice = (b[8] || '').split(',').map(s => s.replace(/\(ราคา.*?\)/g, '').trim()).join(', ');
+  const qrCodeUrl = `https://promptpay.io/0623733306/${totalPrice}.png`;
+  const liffUrl = `https://liff.line.me/2006029649-EbKnbZJ0?id=${id}&userlineid=${b[1]}&name=${encodeURIComponent(fullName)}&contact=${encodeURIComponent(b[4])}&serviceNames=${encodeURIComponent(serviceNoPrice)}&totalPrice=${totalPrice}`;
   const reminderData = {
     idKey: b[0], service: serviceNoPrice,
     date: b[10], time: b[11], name: fullName, // Column K: date, Column L: time
-    status: b[12]
+    qrCodeUrl, liffUrl
   };
-
-  const lang = b[18] || 'th'; // Column S: lang (index 18)
-  
-  // Translate service if needed
-  if (lang !== 'th') {
-    reminderData.service = translateServiceList(reminderData.service, lang, branch);
-  }
-  
-  sendLineMessage(b[1], 'reminder_no_payment', reminderData, lang);
-  return ContentService.createTextOutput('Reminder without payment sent.');
+  sendLineMessage(b[1], 'reminder_with_payment', reminderData);
+  return ContentService.createTextOutput('Reminder with payment sent.');
 }
 
 // ----------------------------------------------------------------
-// แจ้งเตือนธรรมดา (For 'แจ้งยืนยัน' button -> action=sendReminder)
-function sendReminder(params) {
+// แจ้งเตือน without payment
+function sendReminderWithoutPayment(params) {
   const id = params.id;
-  const branch = params.branch || '1';
-  const sheetName = getSheetNameByBranch(SHEET_BOOKING, branch);
-  const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(sheetName);
-  
-  if (!sheet) return ContentService.createTextOutput('Sheet not found for branch ' + branch);
-
+  const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_BOOKING);
   const data = sheet.getDataRange().getValues();
   const idx = data.findIndex(r => r[0] == id);
   if (idx < 0) return ContentService.createTextOutput('Booking not found');
@@ -619,26 +528,12 @@ function sendReminder(params) {
   const fullName = (b[2] || '') + ' ' + (b[3] || ''); // firstName + lastName
   // Remove (ราคา ...) from serviceNames for Flex
   const serviceNoPrice = (b[8] || '').split(',').map(s => s.replace(/\(ราคา.*?\)/g, '').trim()).join(', ');
-  
   const reminderData = {
     idKey: b[0], service: serviceNoPrice,
-    date: b[10], time: b[11], name: fullName,
-    status: b[12]
+    date: b[10], time: b[11], name: fullName // Column K: date, Column L: time
   };
-  
-  const lang = b[18] || 'th';
-  
-  // Translate service if needed
-  if (lang !== 'th') {
-    reminderData.service = translateServiceList(reminderData.service, lang, branch);
-  }
-
-  // Use 'reminder' type or 'confirmation' type? 
-  // Dashboard says "แจ้งยืนยัน" so maybe 'confirmation' or 'reminder'. 
-  // Let's use 'reminder' as it is generic, and status will show 'ยืนยันแล้ว'.
-  sendLineMessage(b[1], 'reminder', reminderData, lang);
-  
-  return ContentService.createTextOutput('Reminder sent.');
+  sendLineMessage(b[1], 'reminder_no_payment', reminderData);
+  return ContentService.createTextOutput('Reminder without payment sent.');
 }
 
 // ----------------------------------------------------------------
@@ -652,8 +547,6 @@ function confirmBooking(params) {
   let sheet = null;
   let idx = -1;
   let data = null;
-
-  let foundBranch = '1';
   
   for (const branch of branches) {
     const sheetName = getSheetNameByBranch(SHEET_BOOKING, branch);
@@ -667,7 +560,6 @@ function confirmBooking(params) {
       sheet = testSheet;
       idx = testIdx;
       data = testData;
-      foundBranch = branch; // Capture branch
       break;
     }
   }
@@ -684,18 +576,11 @@ function confirmBooking(params) {
   const fullName = (booking[2] || '') + ' ' + (booking[3] || ''); // firstName + lastName
   // Remove (ราคา ...) from serviceNames for Flex
   const serviceNoPrice = (booking[8] || '').split(',').map(s => s.replace(/\(ราคา.*?\)/g, '').trim()).join(', ');
-  const lang = booking[18] || 'th'; // Column S: lang (index 18)
-  
-  let displayedService = serviceNoPrice;
-  if (lang !== 'th') {
-    displayedService = translateServiceList(serviceNoPrice, lang, foundBranch);
-  }
-
   sendLineMessage(booking[1], 'confirmBooking', {
-    service: displayedService,
+    service: serviceNoPrice,
     date: booking[10], time: booking[11], // Column K: date, Column L: time
     name: fullName, status: 'ยืนยันแล้ว', idKey
-  }, lang);
+  });
   return ContentService.createTextOutput('Booking confirmed successfully.');
 }
 
@@ -714,12 +599,11 @@ function completeBooking(e) {
   const fullName = (booking[2] || '') + ' ' + (booking[3] || ''); // firstName + lastName
   // Remove (ราคา ...) from serviceNames for Flex
   const serviceNoPrice = (booking[8] || '').split(',').map(s => s.replace(/\(ราคา.*?\)/g, '').trim()).join(', ');
-  const lang = booking[18] || 'th'; // Column S: lang (index 18)
   sendLineMessage(booking[1], 'completion', {
     service: serviceNoPrice,
     date: booking[10], time: booking[11], // Column K: date, Column L: time
     name: fullName, status: 'เสร็จสิ้น'
-  }, lang);
+  });
   return ContentService.createTextOutput('Booking completed successfully.');
 }
 
@@ -756,7 +640,7 @@ function cancelBooking(params) {
   if (idx < 0) return ContentService.createTextOutput('ไม่พบการนัดหมายนี้.');
   const booking = data[idx];
   const current = booking[12]; // Column M: status
-  if (current !== 'รอการยืนยัน' && current !== 'ยืนยันแล้ว') {
+  if (current !== 'รอการยืนยัน') {
     const msg = `ไม่สามารถยกเลิกได้ สถานะปัจจุบันคือ "${current}"`;
     sendLineMessage(booking[1], 'notification', { message: msg });
     return ContentService.createTextOutput(msg);
@@ -784,18 +668,11 @@ function cancelBooking(params) {
   const fullName = (booking[2] || '') + ' ' + (booking[3] || ''); // firstName + lastName
   // Remove (ราคา ...) from serviceNames for Flex
   const serviceNoPrice = (booking[8] || '').split(',').map(s => s.replace(/\(ราคา.*?\)/g, '').trim()).join(', ');
-  const lang = booking[18] || 'th'; // Column S: lang (index 18)
-  
-  let displayedService = serviceNoPrice;
-  if (lang !== 'th') {
-    displayedService = translateServiceList(serviceNoPrice, lang, foundBranch);
-  }
-
   sendLineMessage(booking[1], 'cancellation', {
-    service: displayedService,
+    service: serviceNoPrice,
     date: booking[10], time: booking[11], // Column K: date, Column L: time
     name: fullName, status: 'ยกเลิก'
-  }, lang);
+  });
   return ContentService.createTextOutput('Booking cancelled successfully.');
 }
 // ----------------------------------------------------------------
@@ -809,11 +686,10 @@ function sendReminder(id) {
   const fullName = (b[2] || '') + ' ' + (b[3] || ''); // firstName + lastName
   // Remove (ราคา ...) from serviceNames for Flex
   const serviceNoPrice = (b[8] || '').split(',').map(s => s.replace(/\(ราคา.*?\)/g, '').trim()).join(', ');
-  const lang = b[18] || 'th'; // Column S: lang (index 18)
   sendLineMessage(b[1], 'reminder', {
     idKey: b[0], service: serviceNoPrice,
     date: b[10], time: b[11], name: fullName, status: b[12] // Column K: date, Column L: time, Column M: status
-  }, lang);
+  });
   return ContentService.createTextOutput('Reminder sent successfully.');
 }
 
@@ -832,8 +708,8 @@ function sendReminders() {
       const dateStr = row[10]; // Column K: formattedDate
       const status = row[12]; // Column M: status
 
-      if (!dateStr || (status !== 'รอการยืนยัน' && status !== 'ยืนยันแล้ว')) {
-        return; // ข้ามถ้าสถานะไม่ใช่ 'รอการยืนยัน' หรือ 'ยืนยันแล้ว'
+      if (!dateStr || status !== 'รอการยืนยัน') {
+        return; // ข้ามแถวนี้ไปถ้าไม่มีวันที่ หรือสถานะไม่ใช่ 'รอการยืนยัน'
       }
 
       // *** จุดที่แก้ไข: เปลี่ยนวิธีแปลงวันที่ให้ปลอดภัยและแน่นอน ***
@@ -849,15 +725,14 @@ function sendReminders() {
         bookingDate.getFullYear() === tomorrow.getFullYear()) {
 
         const fullName = (row[2] || '') + ' ' + (row[3] || ''); // firstName + lastName
-        const lang = row[18] || 'th'; // Column S: lang (index 18)
         sendLineMessage(row[1], 'reminder', {
           idKey: row[0],
           service: row[8], // Column I: serviceNames
           date: row[10], // Column K: formattedDate
           time: row[11], // Column L: time
           name: fullName,
-          status: row[12] // Pass actual status ('รอการยืนยัน' or 'ยืนยันแล้ว')
-        }, lang);
+          status: 'รอการยืนยัน'
+        });
       }
     } catch (e) {
       Logger.log(`Error processing row for sendReminders: ${e.toString()}. Row data: ${row}`);
@@ -907,11 +782,11 @@ function testReminderFlex() {
 }
 // ----------------------------------------------------------------
 // ส่งข้อความผ่าน LINE
-function sendLineMessage(userId, type, data, lang = 'th') {
+function sendLineMessage(userId, type, data) {
   const url = 'https://api.line.me/v2/bot/message/push';
 
   try {
-    const msg = createFlexMessage(type, data, lang);
+    const msg = createFlexMessage(type, data);
     if (!msg) {
       Logger.log(`Failed to create Flex Message for type: ${type} and data: ${JSON.stringify(data)}`);
       return;
@@ -952,179 +827,14 @@ function sendLineMessage(userId, type, data, lang = 'th') {
     sendTelegramNotify(`FATAL: Uncaught error in sendLineMessage for user ${userId}: ${err.toString()}`);
   }
 }
-// ================================================================
-// Multi-language Translations
-// ================================================================
-const TRANSLATIONS = {
-  th: {
-    header: {
-      confirmBooking: '✅ ยืนยันการนัดหมาย',
-      cancellation: '⚠️ ยกเลิกการนัดหมาย',
-      completion: '✅ นัดหมายเสร็จสิ้น',
-      reminder: '🔔 แจ้งเตือนการนัดหมาย',
-      confirmation: '🔔 การนัดหมาย',
-      reminder_with_payment: '🔔 แจ้งเตือนและชำระเงิน',
-      reminder_no_payment: '🔔 แจ้งเตือนการนัดหมาย'
-    },
-    status: {
-      confirmBooking: 'ยืนยันแล้ว',
-      cancellation: 'ยกเลิก',
-      completion: 'เสร็จสิ้น',
-      reminder: 'รอการยืนยัน',
-      confirmation: 'รอการยืนยัน'
-    },
-    label: {
-      name: 'ชื่อผู้จอง',
-      service: 'บริการ',
-      date: 'วันที่',
-      time: 'เวลา',
-      status: 'สถานะ',
-      subheader_name: '',
-      subheader_service: '',
-      subheader_date: '',
-      subheader_time: '',
-      subheader_status: ''
-    },
-    footer: {
-      manage: 'จัดการนัดหมาย',
-      payment: 'ชำระเงิน',
-      cancelled: 'การนัดหมายถูกยกเลิกแล้ว',
-      completed: 'ขอบคุณที่ใช้บริการ',
-      saved: 'บันทึกนัดหมายแล้ว',
-      early: 'กรุณามาก่อน 10-20 นาที',
-      cancel_policy: 'หากต้องการยกเลิกหรือเลื่อนนัด กรุณาติดต่อเจ้าหน้าที่'
-    }
-  },
-  en: {
-    header: {
-      confirmBooking: '✅ Appointment Confirmed',
-      cancellation: '⚠️ Appointment Cancelled',
-      completion: '✅ Appointment Completed',
-      reminder: '🔔 Appointment Reminder',
-      confirmation: '🔔 Appointment Pending',
-      reminder_with_payment: '🔔 Reminder & Payment',
-      reminder_no_payment: '🔔 Appointment Reminder'
-    },
-    status: {
-      confirmBooking: 'Confirmed',
-      cancellation: 'Cancelled',
-      completion: 'Completed',
-      reminder: 'Pending',
-      confirmation: 'Pending'
-    },
-    label: {
-      name: 'Name',
-      service: 'Service',
-      date: 'Date',
-      time: 'Time',
-      status: 'Status',
-      subheader_name: '',
-      subheader_service: '',
-      subheader_date: '',
-      subheader_time: '',
-      subheader_status: ''
-    },
-    footer: {
-      manage: 'Manage Appointment',
-      payment: 'Payment',
-      cancelled: 'Appointment has been cancelled',
-      completed: 'Thank you for your service',
-      saved: 'Appointment saved successfully',
-      early: 'Please arrive 10-20 minutes early',
-      cancel_policy: 'If you wish to cancel/reschedule, please contact staff.'
-    }
-  },
-  my: { // Myanmar
-    header: {
-      confirmBooking: '✅ ကြိုတင်မှာယူမှု အတည်ပြုပြီး',
-      cancellation: '⚠️ ကြိုတင်မှာယူမှု ပယ်ဖျက်ပြီး',
-      completion: '✅ ပြီးဆုံးသည်',
-      reminder: '🔔 သတိပေးချက်',
-      confirmation: '🔔 ကြိုတင်မှာယူမှု',
-      reminder_with_payment: '🔔 သတိပေးချက်နှင့်ငွေပေးချေမှု',
-      reminder_no_payment: '🔔 သတိပေးချက်'
-    },
-    status: {
-      confirmBooking: 'အတည်ပြုပြီး',
-      cancellation: 'ဖျက်သိမ်းပြီး',
-      completion: 'ပြီးဆုံးသည်',
-      reminder: 'စောင့်ဆိုင်းနေသည်',
-      confirmation: 'စောင့်ဆိုင်းနေသည်'
-    },
-    label: {
-      name: 'အမည်',
-      service: 'ဝန်ဆောင်မှု',
-      date: 'နေ့ရက်',
-      time: 'အချိန်',
-      status: 'အခြေအနေ',
-      subheader_name: '',
-      subheader_service: '',
-      subheader_date: '',
-      subheader_time: '',
-      subheader_status: ''
-    },
-    footer: {
-      manage: 'စီမံခန့်ခွဲပါ',
-      payment: 'ငွေပေးချေမှု',
-      cancelled: 'ကြိုတင်မှာယူမှု ပယ်ဖျက်လိုက်ပါပြီ',
-      completed: 'ဝန်ဆောင်မှုကို အသုံးပြုသည့်အတွက် ကျေးဇူးတင်ပါသည်',
-      saved: 'ကြိုတင်မှာယူမှု သိမ်းဆည်းပြီး',
-      early: 'ကျေးဇူးပြု၍ ၁၀-၂၀ မိနစ် ကြိုရောက်ပေးပါ',
-      cancel_policy: 'ပယ်ဖျက်လိုပါက ဝန်ထမ်းများနှင့် ဆက်သွယ်ပါ။'
-    }
-  },
-  km: { // Khmer
-    header: {
-      confirmBooking: '✅ ការកក់ត្រូវបានបញ្ជាក់',
-      cancellation: '⚠️ ការកក់ត្រូវបានបោះបង់',
-      completion: '✅ បានបញ្ចប់',
-      reminder: '🔔 ការជូនដំណឹង',
-      confirmation: '🔔 ការកក់',
-      reminder_with_payment: '🔔 ការជូនដំណឹង និងការទូទាត់',
-      reminder_no_payment: '🔔 ការជូនដំណឹង'
-    },
-    status: {
-      confirmBooking: 'បានបញ្ជាក់',
-      cancellation: 'បានបោះបង់',
-      completion: 'បានបញ្ចប់',
-      reminder: 'កំពុងរង់ចាំ',
-      confirmation: 'កំពុងរង់ចាំ'
-    },
-    label: {
-      name: 'ឈ្មោះ',
-      service: 'សេវាកម្ម',
-      date: 'កាលបរិច្ឆេទ',
-      time: 'ពេលវេលា',
-      status: 'ស្ថានភាព',
-      subheader_name: '',
-      subheader_service: '',
-      subheader_date: '',
-      subheader_time: '',
-      subheader_status: ''
-    },
-    footer: {
-      manage: 'គ្រប់គ្រង',
-      payment: 'ការទូទាត់',
-      cancelled: 'ការកក់ត្រូវបានបោះបង់ហើយ',
-      completed: 'សូមអរគុណសម្រាប់ការប្រើប្រាស់សេវាកម្ម',
-      saved: 'បានរក្សាទុកការកក់',
-      early: 'សូមមកដល់មុន ១០-២០ នាទី',
-      cancel_policy: 'ប្រសិនបើអ្នកចង់បោះបង់ សូមទាក់ទងបុគ្គលិក។'
-    }
-  }
-};
-
 // --- วางทับฟังก์ชันนี้ทั้งหมดใน AP V2.js ---
-function createFlexMessage(type, data, lang = 'th') {
+function createFlexMessage(type, data) {
   if (type === 'notification') {
     return {
       type: 'text',
       text: data.message
     };
   }
-  
-  // ตรวจสอบภาษา ถ้าไม่มีให้ใช้ th
-  const t = TRANSLATIONS[lang] || TRANSLATIONS['th'];
 
   const serviceText = data.service || 'ไม่มีบริการระบุ';
   const nameText = data.name || 'ไม่มีชื่อ';
@@ -1132,81 +842,29 @@ function createFlexMessage(type, data, lang = 'th') {
   const timeText = data.time || 'ไม่มีเวลา';
   const idKeyText = data.idKey || '';
 
-  const headerText = t.header[type] || t.header['confirmation'] || 'Detail';
-  
-  // Check if data.status is a Thai status that needs translation
-  if (data.status) {
-    const statusMap = {
-      'ยืนยันแล้ว': 'confirmBooking',
-      'ยกเลิก': 'cancellation',
-      'เสร็จสิ้น': 'completion',
-      'รอการยืนยัน': 'confirmation' // Or 'reminder' depending on context
-    };
-    const mappedKey = statusMap[data.status];
-    if (mappedKey && t.status[mappedKey]) {
-      statusTextValue = t.status[mappedKey];
-    } else {
-      statusTextValue = data.status;
-    }
-  } else {
-    statusTextValue = t.status[type] || t.status['reminder'];
-  }
+  const headerText = {
+    confirmBooking: '✅ ยืนยันการนัดหมาย\nAppointment Confirmed',
+    cancellation: '⚠️ ยกเลิกการนัดหมาย\nAppointment Cancelled',
+    completion: '✅ นัดหมายเสร็จสิ้น\nAppointment Completed',
+    reminder: '🔔 แจ้งเตือนการนัดหมาย\nAppointment Reminder',
+    confirmation: '🔔 การนัดหมาย\nAppointment'
+  }[type] || '🔔 การนัดหมาย\nAppointment';
 
-  // Determine status color: try to use mapped status key first, otherwise fall back to type
-  let effectiveStatusKey = type;
-  if (data.status) {
-    const statusMap = {
-      'ยืนยันแล้ว': 'confirmBooking',
-      'ยกเลิก': 'cancellation',
-      'เสร็จสิ้น': 'completion',
-      'รอการยืนยัน': 'confirmation'
-    };
-    if (statusMap[data.status]) {
-      effectiveStatusKey = statusMap[data.status];
-    }
-  }
+  const statusText = {
+    confirmBooking: 'ยืนยันแล้ว',
+    cancellation: 'ยกเลิก',
+    completion: 'เสร็จสิ้น',
+    reminder: 'รอการยืนยัน',
+    confirmation: 'รอการยืนยัน'
+  }[type] || 'รอการยืนยัน';
 
   const statusColor = {
     confirmBooking: '#06C755',
     cancellation: '#FF0000',
     completion: '#06C755',
     reminder: '#FFA500',
-    confirmation: '#FFA500', // Changed from blue #1f1f97 to Orange #FFA500 for 'Waiting' if preferred, or keep blue. User asked for 'Confirmed' to be green.
-    // Let's keep confirmation as blue/orange based on preference, but 'confirmBooking' is definitely Green.
-    // User specifically asked: "Flex สถานะ ยืนยันให้เป้นสีเชียว" -> confirmBooking is already #06C755 (Green).
-    // The issue was likely that 'type' was 'reminder' which maps to Orange, even if status was 'Confirmed'.
-    
-    reminder_with_payment: '#FFA500',
-    reminder_no_payment: '#FFA500'
-  }[effectiveStatusKey] || '#2F1A87';
-
-  // Helper to create label row
-  const createRow = (labelKey, value, isStatus = false) => {
-    const mainLabel = t.label[labelKey];
-    // const subLabel = t.label[`subheader_${labelKey}`]; // Removed subheader logic
-    const labelText = mainLabel;
-    
-    return {
-      type: 'box',
-      layout: 'horizontal',
-      contents: [{
-        type: 'text',
-        text: labelText,
-        size: 'sm',
-        color: '#2F1A87',
-        weight: 'bold',
-        flex: 0,
-        wrap: true
-      }, {
-        type: 'text',
-        text: value,
-        size: 'sm',
-        color: isStatus ? statusColor : '#111111',
-        align: 'end',
-        wrap: true
-      }]
-    };
-  };
+    confirmation: '#1f1f97'
+  }[type] || '#2F1A87';
 
   const bodyContents = [{
     type: 'text',
@@ -1223,48 +881,105 @@ function createFlexMessage(type, data, lang = 'th') {
     layout: 'vertical',
     margin: 'md',
     spacing: 'sm',
-    contents: [
-      createRow('name', nameText),
-      {
-        type: 'box',
-        layout: 'horizontal',
-        contents: [
-          {
-            type: 'text',
-            text: t.label['service'],
-            size: 'sm',
-            color: '#2F1A87',
-            weight: 'bold',
-            flex: 0,
-            wrap: true
-          },
-          {
-            type: 'box',
-            layout: 'vertical',
-            contents: serviceText.split(',').map(item => ({
-              type: 'text',
-              text: item.trim(),
-              size: 'sm',
-              color: '#111111',
-              align: 'end',
-              wrap: true
-            }))
-          }
-        ],
-        paddingBottom: 'md' // "เว้นระยะบนล่างนิดนึง"
-      },
-      createRow('date', dateText),
-      createRow('time', timeText),
-      createRow('status', statusTextValue, true)
-    ]
+    contents: [{
+      type: 'box',
+      layout: 'horizontal',
+      contents: [{
+        type: 'text',
+        text: 'ชื่อผู้จอง\nName',
+        size: 'sm',
+        color: '#2F1A87',
+        weight: 'bold',
+        flex: 0
+      }, {
+        type: 'text',
+        text: nameText,
+        size: 'sm',
+        color: '#111111',
+        align: 'end',
+        wrap: true
+      }]
+    }, {
+      type: 'box',
+      layout: 'horizontal',
+      contents: [{
+        type: 'text',
+        text: 'บริการ\nService',
+        size: 'sm',
+        color: '#2F1A87',
+        weight: 'bold'
+      }]
+    }, {
+      type: 'box',
+      layout: 'vertical',
+      margin: 'sm',
+      contents: serviceText.split(',').map(item => ({
+        type: 'text',
+        text: item.trim(),
+        size: 'sm',
+        color: '#111111',
+        wrap: true
+      }))
+    }, {
+      type: 'box',
+      layout: 'horizontal',
+      contents: [{
+        type: 'text',
+        text: 'วันที่\nDate',
+        size: 'sm',
+        color: '#2F1A87',
+        weight: 'bold',
+        flex: 0
+      }, {
+        type: 'text',
+        text: dateText,
+        size: 'sm',
+        color: '#111111',
+        align: 'end'
+      }]
+    }, {
+      type: 'box',
+      layout: 'horizontal',
+      contents: [{
+        type: 'text',
+        text: 'เวลา\nTime',
+        size: 'sm',
+        color: '#2F1A87',
+        weight: 'bold',
+        flex: 0
+      }, {
+        type: 'text',
+        text: timeText,
+        size: 'sm',
+        color: '#111111',
+        align: 'end'
+      }]
+    }, {
+      type: 'box',
+      layout: 'horizontal',
+      contents: [{
+        type: 'text',
+        text: 'สถานะ\nStatus',
+        size: 'sm',
+        color: '#2F1A87',
+        weight: 'bold',
+        flex: 0
+      }, {
+        type: 'text',
+        text: statusText,
+        size: 'sm',
+        color: statusColor,
+        align: 'end'
+      }]
+    }]
   }];
 
   const footer = [];
   let footerBg = '#FFFFFF';
 
-  if (type === 'reminder' || type === 'reminder_with_payment' || type === 'reminder_no_payment') {
+  if (type === 'reminder') {
     const params = `id=${encodeURIComponent(idKeyText)}&name=${encodeURIComponent(nameText)}&service=${encodeURIComponent(serviceText)}&date=${encodeURIComponent(dateText)}&time=${encodeURIComponent(timeText)}`;
-    const liffUrl = `https://liff.line.me/${LIFF_ID_CONFIRM}?${params}`; // Note: language might need to be passed here too if frontend supports it
+    const liffUrl = `https://liff.line.me/${LIFF_ID_CONFIRM}?${params}`;
 
     footer.push({
       type: 'box',
@@ -1274,21 +989,12 @@ function createFlexMessage(type, data, lang = 'th') {
         type: 'button',
         action: {
           type: 'uri',
-          label: t.footer.manage,
+          label: 'จัดการนัดหมาย | Manage',
           uri: liffUrl
         },
         style: 'primary',
         height: 'sm',
         color: '#1f1f97'
-      },
-      {
-        type: 'text',
-        text: t.footer.cancel_policy,
-        size: 'xs',
-        color: '#8c8c8c',
-        align: 'center',
-        wrap: true,
-        margin: 'md'
       }]
     });
     footerBg = '#F3F2FA';
@@ -1299,7 +1005,7 @@ function createFlexMessage(type, data, lang = 'th') {
       layout: 'vertical',
       contents: [{
         type: 'text',
-        text: t.footer.cancelled,
+        text: 'การนัดหมายถูกยกเลิกแล้ว\nAppointment Cancelled',
         size: 'xs',
         color: '#ffffff',
         align: 'center',
@@ -1314,7 +1020,7 @@ function createFlexMessage(type, data, lang = 'th') {
       layout: 'vertical',
       contents: [{
         type: 'text',
-        text: t.footer.completed,
+        text: 'ขอบคุณที่ใช้บริการ\nThank you for your service',
         size: 'xs',
         color: '#ffffff',
         align: 'center',
@@ -1329,7 +1035,7 @@ function createFlexMessage(type, data, lang = 'th') {
       layout: 'vertical',
       contents: [{
         type: 'text',
-        text: t.footer.saved,
+        text: 'บันทึกนัดหมายแล้ว\nAppointment Saved',
         size: 'xs',
         color: '#ffffff',
         align: 'center',
@@ -1344,7 +1050,7 @@ function createFlexMessage(type, data, lang = 'th') {
       layout: 'vertical',
       contents: [{
         type: 'text',
-        text: t.footer.early,
+        text: 'กรุณามาก่อน 10-20 นาที\nPlease arrive 10-20 minutes early',
         size: 'xs',
         color: '#ffffff',
         align: 'center',
@@ -1370,7 +1076,7 @@ function createFlexMessage(type, data, lang = 'th') {
         type: 'button',
         action: {
           type: 'uri',
-          label: t.footer.payment,
+          label: 'ชำระเงิน | Payment',
           uri: data.liffUrl
         },
         style: 'primary',
@@ -1382,7 +1088,7 @@ function createFlexMessage(type, data, lang = 'th') {
 
   return {
     type: 'flex',
-    altText: t.header[type] || 'Appointment Details',
+    altText: 'กำหนดการนัดหมาย | Appointment Details',
     contents: {
       type: 'bubble',
       body: {
@@ -1779,14 +1485,12 @@ function toYmdFromSheetDateV2(value) {
   return null;
 }
 
-function extractWorkdayConfig(rows) {
+function extractWorkdayConfigV2(rows) {
   const safeRows = Array.isArray(rows) ? rows : [];
-  // Parse Weekly Workdays from E2 (Column index 4)
   const weeklyWorkdays = parseWeeklyWorkdaysV2(
     safeRows.length > 1 && safeRows[1] ? safeRows[1][4] : '',
   );
-  // Parse Extra Workdays from Column D (index 3)
-  const extraWorkdays = Array.from(
+  const specialWorkdays = Array.from(
     new Set(
       safeRows
         .slice(1)
@@ -1794,7 +1498,7 @@ function extractWorkdayConfig(rows) {
         .filter(Boolean),
     ),
   );
-  return { weeklyWorkdays, extraWorkdays };
+  return { weeklyWorkdays, specialWorkdays };
 }
 
 function extractTimeCapacityV2(rows) {
@@ -1820,18 +1524,10 @@ function extractTimeCapacityV2(rows) {
   return { times, maxBookings };
 }
 
-function isWorkingDay(dateObj, weeklyWorkdays, extraWorkdays) {
-  // Parsing date strictly in Bangkok Timezone to determine Day of Week
+function isWorkingDateV2(dateObj, weeklyWorkdays, specialWorkdays) {
+  const dayOfWeek = dateObj.getDay();
   const dateKey = Utilities.formatDate(dateObj, 'Asia/Bangkok', 'yyyy-MM-dd');
-  const [y, m, d] = dateKey.split('-').map(Number);
-  const localDate = new Date(y, m - 1, d); // Construct date in script's local time to use getDay() safely
-  const dayOfWeek = localDate.getDay(); 
-  
-  // Debug Log
-  // Logger.log(`Checking ${dateKey} (Day: ${dayOfWeek}) against Weekly: ${weeklyWorkdays}, Extra: ${extraWorkdays}`);
-  
-  // Return true if it matches a weekly workday OR a specific extra workday
-  return weeklyWorkdays.includes(dayOfWeek) || extraWorkdays.includes(dateKey);
+  return weeklyWorkdays.includes(dayOfWeek) || specialWorkdays.includes(dateKey);
 }
 
 function buildDayAvailabilityV2(dateObj, times, maxBookings, branch) {
@@ -1882,7 +1578,7 @@ function getMonthAvailability(e) {
   }
 
   const rows = sheet.getDataRange().getValues();
-  const { weeklyWorkdays, extraWorkdays } = extractWorkdayConfig(rows);
+  const { weeklyWorkdays, specialWorkdays } = extractWorkdayConfigV2(rows);
   const { times, maxBookings } = extractTimeCapacityV2(rows);
   const calendar = CalendarApp.getCalendarById(getCalendarIdByBranch(branch));
 
@@ -1918,8 +1614,8 @@ function getMonthAvailability(e) {
       continue;
     }
 
-    const isOpen = isWorkingDay(currentDate, weeklyWorkdays, extraWorkdays);
-    if (!isOpen || !times.length) {
+    const isWorkingDay = isWorkingDateV2(currentDate, weeklyWorkdays, specialWorkdays);
+    if (!isWorkingDay || !times.length) {
       result[dateKey] = 'full';
       continue;
     }
@@ -1967,19 +1663,15 @@ function checkAvailability(e) {
   }
 
   const rows = sheet.getDataRange().getValues();
-  // Workday Config: whitelist mode
-  const { weeklyWorkdays, extraWorkdays } = extractWorkdayConfig(rows);
-
-  Logger.log('Config - Weekly: ' + JSON.stringify(weeklyWorkdays) + ', Extra: ' + JSON.stringify(extraWorkdays));
-  
+  const { weeklyWorkdays, specialWorkdays } = extractWorkdayConfigV2(rows);
   if (e.parameter.getHolidays || e.parameter.getWorkdays) {
     return ContentService.createTextOutput(
       JSON.stringify({
-        // Return workdays info
-        workdays: extraWorkdays,
-        weeklyWorkdays: weeklyWorkdays,
-        holidays: [],
-        permanentHolidays: []
+        workdays: specialWorkdays,
+        weeklyWorkdays,
+        // Backward-compatible fields
+        holidays: specialWorkdays,
+        permanentHolidays: weeklyWorkdays,
       }),
     ).setMimeType(ContentService.MimeType.JSON);
   }
@@ -1993,17 +1685,14 @@ function checkAvailability(e) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const { times, maxBookings } = extractTimeCapacityV2(rows);
-  
-  // Logic: Must be a working day to be open
-  const isOpen = isWorkingDay(inputDate, weeklyWorkdays, extraWorkdays);
+  const isWorkingDay = isWorkingDateV2(inputDate, weeklyWorkdays, specialWorkdays);
 
   let availability = {};
   if (inputDate <= today) {
     times.forEach((t) => {
       availability[t] = { status: 'เต็ม', remaining: 0, total: 0 };
     });
-  } else if (!isOpen) {
-    // If not a working day -> Closed
+  } else if (!isWorkingDay) {
     times.forEach((t) => {
       availability[t] = { status: 'ปิด', remaining: 0, total: 0 };
     });
@@ -2014,72 +1703,11 @@ function checkAvailability(e) {
   return ContentService.createTextOutput(
     JSON.stringify({
       availability,
-      isWorkingDay: isOpen,
-      isHoliday: !isOpen,
-      color: isOpen ? 'default' : 'red',
+      isWorkingDay,
+      isHoliday: !isWorkingDay,
+      color: isWorkingDay ? 'default' : 'red',
     }),
   ).setMimeType(ContentService.MimeType.JSON);
 }
 
 
-
-// ----------------------------------------------------------------
-// Helper: แปลงชื่อบริการเป็นภาษาอังกฤษ (ถ้ามี)
-// Helper: แปลงชื่อบริการเป็นภาษาอังกฤษ/พม่า/กัมพูชา (ถ้ามี)
-function translateServiceList(serviceStr, lang, branch) {
-  if (!serviceStr || !lang || lang === 'th') return serviceStr;
-  
-  // Mapping lang code to Column Index (0-based)
-  // B=1 (Thai), F=5 (EN), G=6 (MY), H=7 (KM)
-  const langColMap = {
-    'en': 5,
-    'my': 6,
-    'km': 7
-  };
-  
-  const targetColIndex = langColMap[lang];
-  if (!targetColIndex) return serviceStr; // Language not supported in sheet
-
-  try {
-    const sheetName = getSheetNameByBranch(SHEET_SERVICES, branch);
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const sheet = ss.getSheetByName(sheetName);
-    
-    if (!sheet) return serviceStr;
-    
-    // ดึงข้อมูลทั้งหมดรวมถึง header เพื่อเช็ค column
-    const allData = sheet.getDataRange().getValues();
-    if (allData.length < 2) return serviceStr; // ไม่มีข้อมูล
-    
-    // ตรวจสอบว่ามี Column เพียงพอหรือไม่
-    if (allData[0].length <= targetColIndex) return serviceStr; 
-    
-    const data = allData.slice(1);
-    
-    // สร้าง Map: Thai Name -> Target Lang Name
-    const map = {};
-    for (let i = 0; i < data.length; i++) {
-      const r = data[i];
-      const thaiName = (r[1] || '').toString().trim();
-      const targetName = (r[targetColIndex] || '').toString().trim();
-      
-      if (thaiName && targetName) {
-        map[thaiName] = targetName;
-      }
-    }
-
-    // แยก serviceStr ด้วย comma แล้วแปลทีละอัน
-    const parts = serviceStr.split(',').map(s => s.trim());
-    const translatedParts = parts.map(p => {
-      // ลบ (ราคา...) ออกถ้าจำเป็น (ในชีตอาจจะไม่มีราคาติดมา แต่ข้อมูลที่ส่งมาอาจจะมี)
-      let cleanName = p.replace(/\(ราคา.*?\)/g, '').trim();
-      return map[cleanName] || p; 
-    });
-    
-    return translatedParts.join(', ');
-    
-  } catch (e) {
-    Logger.log('translateServiceList error: ' + e);
-    return serviceStr; // Error fallback to original
-  }
-}
