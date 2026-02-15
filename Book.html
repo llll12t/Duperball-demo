@@ -896,6 +896,17 @@
             return key;
         };
 
+        function syncLangField(lang = currentLang) {
+            const resolvedLang = translations[lang] ? lang : defaultLang;
+            const langInput = $('lang');
+            if (langInput) langInput.value = resolvedLang;
+            const langSwitcher = $('languageSwitcher');
+            if (langSwitcher && langSwitcher.value !== resolvedLang) {
+                langSwitcher.value = resolvedLang;
+            }
+            return resolvedLang;
+        }
+
         // ฟังก์ชันแปลชื่อบริการ (เข้มแข็ง: trim/normalize และลองหลาย fallback)
         function normalizeServiceKey(name) {
             if (!name && name !== 0) return '';
@@ -975,6 +986,7 @@
             console.log('currentLang set to:', currentLang);
             localStorage.setItem('booking_lang', currentLang);
             document.documentElement.lang = currentLang;
+            syncLangField(currentLang);
 
             // สร้างฟังก์ชัน t แบบ local สำหรับภาษาใหม่
             const tLocal = (key) => {
@@ -1761,20 +1773,13 @@
         // Language Switcher Logic
         const langSwitcher = $('languageSwitcher');
         if (langSwitcher) {
-            langSwitcher.addEventListener('change', (e) => {
-                const newLang = e.target.value;
-                const langInput = $('lang');
-                if (langInput) langInput.value = newLang;
-                // ... existing language switching logic if any ...
-            });
-            // Init
-            const langInput = $('lang');
-            if (langInput && langSwitcher.value) langInput.value = langSwitcher.value;
+            syncLangField(langSwitcher.value || currentLang);
         }
 
         $('bookingForm').onsubmit = async (e) => {
             e.preventDefault();
             showLoading(true);
+            syncLangField(currentLang);
             const fd = new FormData($('bookingForm'));
             fd.set('action', 'makeBooking');
             fd.append('date', selectedDate);
@@ -1783,7 +1788,7 @@
             fd.append('id_card_or_social', $('id_card_or_social').value.trim());
             fd.append('disease_allergy', $('disease_allergy').value.trim() || '');
             fd.append('branch', localStorage.getItem('selectedBranch') || '1');
-            fd.append('lang', $('lang').value || 'th'); // Ensure lang is sent
+            fd.set('lang', currentLang || defaultLang);
             try {
                 const resp = await fetch(WEB_APP_URL, { method: 'POST', body: fd });
                 const text = await resp.text();
@@ -1814,6 +1819,7 @@
 
             showPopup('popup.bookingSuccess', true);
             $('bookingForm').reset();
+            syncLangField(currentLang);
             updateSelectedServices();
             $('timeDropdown').innerHTML = `<div class="text-placeholder text-sm text-center py-2 col-span-full">${t('step2.placeholder')}</div>`;
             $('time').value = '';
@@ -1979,10 +1985,14 @@
                 const savedLang = localStorage.getItem('booking_lang') || navigator.language.split('-')[0];
                 const lang = translations[savedLang] ? savedLang : defaultLang;
                 currentLang = lang; // Set current language directly
-                $('languageSwitcher').value = lang;
-                $('languageSwitcher').addEventListener('change', async (e) => {
-                    await setLanguage(e.target.value);
-                });
+                const languageSwitcher = $('languageSwitcher');
+                syncLangField(currentLang);
+                if (languageSwitcher && !languageSwitcher.dataset.boundLangChange) {
+                    languageSwitcher.addEventListener('change', async (e) => {
+                        await setLanguage(e.target.value);
+                    });
+                    languageSwitcher.dataset.boundLangChange = 'true';
+                }
                 // Load all booking data (removed duplicate fetchServiceData from setLanguage)
                 await Promise.allSettled([
                     ENABLE_LIFF ? initLiff() : Promise.resolve(offlineProfile()),
