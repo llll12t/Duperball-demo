@@ -77,7 +77,7 @@ const translations = {
     'flex.diseaseAllergyLabel': 'โรค/แพ้',
     'flex.noteLabel': 'หมายเหตุ',
     'flex.footerTitle': 'ทำการจองให้เรียบร้อยค่ะ',
-    'flex.footerBody': 'เพื่อความรวดเร็ว \nกรุณากด ยืนยัน นัดหมาย \nก่อนวันนัด1 วันนะคะ \n\nท่านสามารถตรวจสอบประวัติการจอง และ กดยืนยันหรือยกเลิกนัดหมาย ได้ที่ เมนู “นัดหมาย/ยืนยัน” เลือก “ข้อมูลการนัดหมาย” และกด“ยืนยัน”ค่ะ  แล้วพบกันนะคะ',
+    'flex.footerBody': 'ระบบได้รับการจองคิวของท่านเรียบร้อยแล้วค่ะ\n\nทางคลินิกจะแจ้งเตือนนัดหมายล่วงหน้า \n1 วัน ก่อนถึงวันนัดนะคะ\n\nหากต้องการเลื่อนหรือยกเลิกนัดหมาย \nสามารถทำได้ที่เมนู “นัดหมาย” \nแล้วพบกันนะคะ',
     // --- History page ---
     'history.title': 'รายการนัดหมายของคุณ',
     'history.loading': 'กำลังโหลดข้อมูล...',
@@ -203,7 +203,7 @@ const translations = {
     'flex.diseaseAllergyLabel': 'Disease/Allergy',
     'flex.noteLabel': 'Note',
     'flex.footerTitle': 'Booking Completed',
-    'flex.footerBody': 'For faster service, \nplease confirm your appointment \n1 day in advance. \n\nYou can check your booking history and confirm or cancel appointments at the “Appointment/Confirm” menu, select “Appointment Information” and press “Confirm”. See you soon!',
+    'flex.footerBody': 'Your booking has been received.\n\nWe will send a reminder notification \n1 day before your appointment.\n\nIf you wish to reschedule or cancel, \nyou can do so via the “Appointments” menu. \nSee you soon!',
     // --- History page ---
     'history.title': 'Your Appointments',
     'history.loading': 'Loading data...',
@@ -329,7 +329,7 @@ const translations = {
     'flex.diseaseAllergyLabel': 'ရောဂါ/မတည့်မှု',
     'flex.noteLabel': 'မှတ်ချက်',
     'flex.footerTitle': 'ရက်ချိန်းအတည်ပြုပြီးပါပြီ',
-    'flex.footerBody': 'ရက်ချိန်းမတိုင်မီ ၁ ရက်ကြိုတင်အသိပေးပါမည်။ \n\nကျေးဇူးပြု၍ "Passport" သို့မဟုတ် မှတ်ပုံတင်ကို \nဝန်ဆောင်မှုရယူမည့်နေ့တွင် ယူဆောင်လာပါ။',
+    'flex.footerBody': 'သင်၏ကြိုတင်စာရင်းသွင်းမှုကို လက်ခံရရှိပြီးပါပြီ။\n\nချိန်းဆိုထားသည့်ရက်မတိုင်မီ ၁ ရက်အလိုတွင် \nသတိပေးစာ ပေးပို့ပါမည်။\n\nရွှေ့ဆိုင်းလိုပါက သို့မဟုတ် ပယ်ဖျက်လိုပါက \n“Appointment” မီနူးတွင် လုပ်ဆောင်နိုင်သည်။',
     // --- History page ---
     'history.title': 'သင့်ရဲ့ချိန်းဆိုမှုများ',
     'history.loading': 'ဒေတာတင်နေသည်...',
@@ -442,7 +442,7 @@ const translations = {
     'flex.diseaseAllergyLabel': 'ជំងឺ/អាឡែស៊ី',
     'flex.noteLabel': 'កំណត់ចំណាំ',
     'flex.footerTitle': 'ការណាត់ជួបត្រូវបានបញ្ជាក់',
-    'flex.footerBody': 'យើងនឹងជូនដំណឹង ១ ថ្ងៃមុនពេលណាត់ជួប។ \n\nសូមរៀបចំ "លិខិតឆ្លងដែន" ឬអត្តសញ្ញាណប័ណ្ណ \nសម្រាប់ការមកទទួលសេវាកម្ម។',
+    'flex.footerBody': 'ការកក់របស់អ្នកត្រូវបានទទួលហើយ។\n\nយើងនឹងផ្ញើការជូនដំណឹងរំលឹក \n១ ថ្ងៃមុនថ្ងៃណាត់ជួប។\n\nប្រសិនបើអ្នកចង់ផ្លាស់ប្តូរ ឬបោះបង់ \nអ្នកអាចធ្វើបាននៅម៉ឺនុយ “ការណាត់ជួប”។',
     // --- History page ---
     'history.title': 'ការណាត់ជួបរបស់អ្នក',
     'history.loading': 'កំពុងផ្ទុកទិន្នន័យ...',
