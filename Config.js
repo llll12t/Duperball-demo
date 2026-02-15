@@ -2,4 +2,4 @@ const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz4J0kgkseIWm1VA2f_
 
 const LIFF_ID = '2006029649-bj0ez4Og'; // Booking
 const LIFF_ID_HISTORY = '2008293202-5EPzcBAy';
-const LIFF_ID_CONFIRM = '2008293202-VJQZWvzL'; 
+const LIFF_ID_CONFIRM = '2006029649-8GP41NAg'; 
