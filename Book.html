@@ -78,7 +78,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 184, 176, 0.18);
+            background: var(--overlay-bg);
             display: none;
             align-items: center;
             justify-content: center;
@@ -86,7 +86,6 @@
             opacity: 0;
             transition: opacity 0.3s ease-in-out;
             pointer-events: none;
-            backdrop-filter: blur(2px);
         }
 
         .loading-overlay.visible {
@@ -95,96 +94,45 @@
             pointer-events: auto;
         }
 
-        .loading-skeleton-panel {
-            width: min(92vw, 360px);
-            background: rgba(255, 255, 255, 0.95);
-            border: 1px solid var(--border);
-            border-radius: 1rem;
-            padding: 1rem;
-            box-shadow: 0 16px 34px rgba(0, 184, 176, 0.2);
+        /* ---- Loading Animation ---- */
+        .loader {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(0, 184, 176, 0.15);
+            border-bottom-color: var(--primary);
+            border-radius: 50%;
+            display: inline-block;
+            box-sizing: border-box;
+            animation: rotation 1s linear infinite;
         }
 
-        .skeleton-block {
-            position: relative;
-            overflow: hidden;
-            background: linear-gradient(90deg, #d6f4ef 0%, #c8eee8 100%);
-            border-radius: 0.6rem;
+        .service-loader {
+            width: 32px;
+            height: 32px;
+            border: 3px solid var(--border);
+            border-bottom-color: var(--accent);
+            border-radius: 50%;
+            display: inline-block;
+            box-sizing: border-box;
+            animation: rotation 1s linear infinite;
+            margin-right: 12px;
         }
 
-        .skeleton-block::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            transform: translateX(-100%);
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
-            animation: skeleton-shimmer 1.4s infinite;
+        .loading-text {
+            color: var(--text-placeholder);
+            font-size: 0.9rem;
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
 
-        .skeleton-title {
-            height: 1rem;
-            width: 55%;
-            margin-bottom: 0.75rem;
-        }
+        @keyframes pulse {
 
-        .skeleton-subtitle {
-            height: 0.8rem;
-            width: 35%;
-            margin-bottom: 1rem;
-        }
-
-        .skeleton-grid-2 {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 0.75rem;
-        }
-
-        .skeleton-card {
-            height: 88px;
-            border-radius: 0.75rem;
-        }
-
-        .service-skeleton-card {
-            min-height: 120px;
-            border-radius: 0.75rem;
-            border: 1px solid var(--border);
-            background: #ffffff;
-            padding: 0.75rem;
-            box-shadow: 0 6px 18px rgba(0, 184, 176, 0.1);
-        }
-
-        .service-skeleton-line-lg {
-            height: 0.95rem;
-            width: 78%;
-            margin-bottom: 0.6rem;
-        }
-
-        .service-skeleton-line-sm {
-            height: 0.75rem;
-            width: 56%;
-        }
-
-        .time-option-skeleton {
-            border: 1px solid var(--border);
-            border-radius: 0.5rem;
-            background: #ffffff;
-            padding: 0.75rem;
-            box-shadow: 0 6px 16px rgba(0, 184, 176, 0.08);
-        }
-
-        .time-skeleton-line-top {
-            height: 0.75rem;
-            width: 62%;
-            margin-bottom: 0.55rem;
-        }
-
-        .time-skeleton-line-bottom {
-            height: 0.65rem;
-            width: 45%;
-        }
-
-        @keyframes skeleton-shimmer {
+            0%,
             100% {
-                transform: translateX(100%);
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
             }
         }
 
@@ -660,16 +608,7 @@
 
 <body class="bg-gradient-to-b from-[#e0fff7] via-[#f8ffe9] to-white min-h-screen relative bg-fixed ">
     <div class="loading-overlay" id="loadingOverlay">
-        <div class="loading-skeleton-panel">
-            <div class="skeleton-block skeleton-title"></div>
-            <div class="skeleton-block skeleton-subtitle"></div>
-            <div class="skeleton-grid-2">
-                <div class="skeleton-block skeleton-card"></div>
-                <div class="skeleton-block skeleton-card"></div>
-                <div class="skeleton-block skeleton-card"></div>
-                <div class="skeleton-block skeleton-card"></div>
-            </div>
-        </div>
+        <div class="loader"></div>
     </div>
     <div class="popup" id="popup">
         <div class="popup-content" id="popupContent"></div>
@@ -1062,35 +1001,24 @@
             }
         }
 
-        function getServiceSkeletonHTML(count = 4) {
-            return Array.from({ length: count }).map(() => `
-                <div class="service-skeleton-card">
-                    <div class="skeleton-block service-skeleton-line-lg"></div>
-                    <div class="skeleton-block service-skeleton-line-sm"></div>
-                </div>
-            `).join('');
-        }
-
-        function getTimeSkeletonHTML(count = 6) {
-            return Array.from({ length: count }).map(() => `
-                <div class="time-option-skeleton">
-                    <div class="skeleton-block time-skeleton-line-top"></div>
-                    <div class="skeleton-block time-skeleton-line-bottom"></div>
-                </div>
-            `).join('');
-        }
-
-        // inline service-loading UI (skeleton in serviceCards) and control disabling
+        // inline service-loading UI (spinner inside serviceCards) and control disabling
         function setServiceLoading(on) {
             const container = $('serviceCards');
             const nextBtn = $('nextToStep2');
             const langSwitch = $('languageSwitcher');
             if (!container) return;
             if (on) {
-                container.innerHTML = getServiceSkeletonHTML(4);
+                // show enhanced loading state with spinner and text
+                container.innerHTML = `
+                    <div class="col-span-2 flex flex-col items-center justify-center py-8">
+                        <div class="flex items-center mb-3">
+                            <div class="service-loader"></div>
+                        </div>
+                    </div>
+                `;
                 if (nextBtn) {
                     nextBtn.disabled = true;
-                    nextBtn.classList.add('opacity-70');
+                    nextBtn.classList.add('btn-loading');
                 }
                 if (langSwitch) {
                     langSwitch.disabled = true;
@@ -1099,7 +1027,7 @@
             } else {
                 if (nextBtn) {
                     nextBtn.disabled = false;
-                    nextBtn.classList.remove('opacity-70');
+                    nextBtn.classList.remove('btn-loading');
                 }
                 if (langSwitch) {
                     langSwitch.disabled = false;
@@ -1355,7 +1283,7 @@
         }
 
         async function checkAvailability(dateStr) {
-            $('timeDropdown').innerHTML = getTimeSkeletonHTML(6);
+            $('timeDropdown').innerHTML = `<div class="text-placeholder text-sm text-center py-2 col-span-full">${t('step2.loading')}</div>`;
             try {
                 const branch = localStorage.getItem('selectedBranch') || '1';
                 const res = await fetch(`${WEB_APP_URL}?action=checkAvailability&date=${dateStr}&branch=${branch}`);
